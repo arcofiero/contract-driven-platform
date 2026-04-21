@@ -1,0 +1,30 @@
+# Kafka clients
+kafka-python>=2.0.2
+confluent-kafka>=2.3.0
+
+# Avro / serialization
+fastavro>=1.9.0
+
+# Stream processing
+apache-flink>=1.18.0
+
+# Delta Lake / Spark
+delta-spark>=3.1.0
+
+# dbt
+dbt-core>=1.7.0
+
+# Data quality
+soda-core>=3.3.0
+
+# Orchestration
+apache-airflow>=2.8.0
+
+# AWS SDK
+boto3>=1.34.0
+
+# HTTP
+requests>=2.31.0
+
+# Config
+python-dotenv>=1.0.0
