@@ -1,0 +1,32 @@
+{
+  "type": "record",
+  "name": "ClickstreamEvent",
+  "namespace": "com.contractplatform.clickstream",
+  "doc": "Schema for a single clickstream event from the web front-end simulator.",
+  "fields": [
+    {"name": "event_id",   "type": "string", "doc": "Unique identifier for this click event (UUID)."},
+    {"name": "session_id", "type": "string", "doc": "Browser session identifier (UUID)."},
+    {"name": "user_id",    "type": ["null","string"], "default": null,
+                            "doc": "Authenticated user identifier. Null for anonymous sessions."},
+    {
+      "name": "event_type",
+      "type": {"type": "enum", "name": "ClickEventType",
+               "symbols": ["page_view","button_click","form_submit","search","purchase","logout"]},
+      "doc": "Type of user interaction captured."
+    },
+    {"name": "page_url",            "type": "string",          "doc": "URL where the event occurred."},
+    {"name": "referrer_url",        "type": ["null","string"], "default": null, "doc": "Referring URL."},
+    {"name": "browser",             "type": "string",          "doc": "Browser user-agent (simplified)."},
+    {
+      "name": "device_type",
+      "type": {"type": "enum", "name": "DeviceType",
+               "symbols": ["desktop","mobile","tablet"]},
+      "doc": "Device class."
+    },
+    {"name": "country_code",        "type": "string", "doc": "ISO 3166-1 alpha-2 country code."},
+    {"name": "session_duration_ms", "type": ["null","long"], "default": null,
+                                     "doc": "Session duration in ms. Negative = data violation."},
+    {"name": "event_timestamp",     "type": "string", "doc": "ISO-8601 UTC timestamp."},
+    {"name": "schema_version",      "type": "string", "default": "1.0", "doc": "Schema version tag."}
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "type": "record",
+  "name": "WeatherEvent",
+  "namespace": "com.contractplatform.weather",
+  "doc": "Schema for weather data polled from OpenWeatherMap API.",
+  "fields": [
+    {"name": "event_id",            "type": ["null","string"], "default": null,
+                                     "doc": "UUID for this weather snapshot. Null = data violation."},
+    {"name": "city",                "type": "string", "doc": "City name queried."},
+    {"name": "country_code",        "type": "string", "doc": "ISO 3166-1 alpha-2 country code."},
+    {"name": "temperature_c",       "type": "double", "doc": "Temperature in Celsius."},
+    {"name": "feels_like_c",        "type": "double", "doc": "Perceived temperature in Celsius."},
+    {"name": "humidity_pct",        "type": "int",    "doc": "Relative humidity percent (0-100)."},
+    {"name": "wind_speed_ms",       "type": "double", "doc": "Wind speed in m/s."},
+    {"name": "wind_direction_deg",  "type": "int",    "doc": "Wind direction in degrees (0-359)."},
+    {"name": "weather_condition",   "type": "string", "doc": "Main weather condition (e.g. Rain)."},
+    {"name": "weather_description", "type": "string", "doc": "Human-readable weather description."},
+    {"name": "visibility_m",        "type": "int",    "doc": "Visibility in metres."},
+    {"name": "pressure_hpa",        "type": "int",    "doc": "Atmospheric pressure in hPa."},
+    {"name": "event_timestamp",     "type": "string", "doc": "ISO-8601 UTC timestamp of the poll."},
+    {"name": "schema_version",      "type": "string", "default": "1.0", "doc": "Schema version tag."}
+  ]
+}

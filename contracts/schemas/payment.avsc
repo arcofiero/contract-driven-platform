@@ -1,0 +1,34 @@
+{
+  "type": "record",
+  "name": "PaymentEvent",
+  "namespace": "com.contractplatform.payments",
+  "doc": "Schema for a single payment event produced by the payments generator.",
+  "fields": [
+    {"name": "payment_id",  "type": "string", "doc": "Unique payment identifier (UUID)."},
+    {"name": "order_id",    "type": "string", "doc": "Associated order identifier (UUID)."},
+    {"name": "customer_id", "type": "string", "doc": "Customer identifier in format CUST-NNNN."},
+    {"name": "amount",      "type": "double", "doc": "Payment amount in the specified currency."},
+    {"name": "currency",    "type": "string", "doc": "ISO 4217 currency code."},
+    {
+      "name": "payment_method",
+      "type": {"type": "enum", "name": "PaymentMethod",
+               "symbols": ["credit_card","debit_card","paypal","bank_transfer","crypto"]},
+      "doc": "Method used to make the payment."
+    },
+    {
+      "name": "status",
+      "type": {"type": "enum", "name": "PaymentStatus",
+               "symbols": ["initiated","processing","completed","failed","refunded","disputed"]},
+      "doc": "Current status of the payment transaction."
+    },
+    {"name": "processor",                "type": "string",          "doc": "Payment processor name."},
+    {"name": "processor_transaction_id", "type": ["null","string"], "default": null,
+                                          "doc": "Transaction ID from processor."},
+    {"name": "processing_time_ms",       "type": ["null","int"],    "default": null,
+                                          "doc": "Processing time in ms. Negative = violation."},
+    {"name": "risk_score",               "type": ["null","double"], "default": null,
+                                          "doc": "Fraud risk score 0.0-1.0."},
+    {"name": "event_timestamp",          "type": "string", "doc": "ISO-8601 UTC timestamp."},
+    {"name": "schema_version",           "type": "string", "default": "1.0", "doc": "Schema version tag."}
+  ]
+}

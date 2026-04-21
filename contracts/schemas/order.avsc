@@ -1,0 +1,45 @@
+{
+  "type": "record",
+  "name": "Order",
+  "namespace": "com.contractplatform.orders",
+  "doc": "Schema for a single order event produced by the orders generator.",
+  "fields": [
+    {"name": "order_id",    "type": "string", "doc": "Unique order identifier (UUID)."},
+    {"name": "customer_id", "type": "string", "doc": "Customer identifier in format CUST-NNNN."},
+    {
+      "name": "status",
+      "type": {"type": "enum", "name": "OrderStatus",
+               "symbols": ["created","pending","confirmed","shipped","cancelled"]},
+      "doc": "Lifecycle status of the order."
+    },
+    {"name": "currency",     "type": "string",          "doc": "ISO 4217 currency code."},
+    {"name": "total_amount", "type": ["null","double"],  "default": null,
+                              "doc": "Total order value. Null is a data-quality violation."},
+    {
+      "name": "items",
+      "type": {"type": "array", "items": {
+        "type": "record", "name": "OrderItem",
+        "fields": [
+          {"name": "product_id", "type": "string"},
+          {"name": "name",       "type": "string"},
+          {"name": "unit_price", "type": "double"},
+          {"name": "quantity",   "type": "int"},
+          {"name": "subtotal",   "type": "double"}
+        ]
+      }},
+      "doc": "Line items in the order."
+    },
+    {
+      "name": "shipping_address",
+      "type": {"type": "record", "name": "ShippingAddress",
+               "fields": [
+                 {"name": "street",  "type": "string"},
+                 {"name": "city",    "type": "string"},
+                 {"name": "country", "type": "string"}
+               ]},
+      "doc": "Destination shipping address."
+    },
+    {"name": "event_timestamp", "type": "string", "doc": "ISO-8601 UTC timestamp."},
+    {"name": "schema_version",  "type": "string", "default": "1.0", "doc": "Schema version tag."}
+  ]
+}
