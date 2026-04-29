@@ -1,0 +1,91 @@
+version: 2
+
+sources:
+  - name: bronze
+    schema: bronze
+    tables:
+      - name: orders
+        description: Raw valid + invalid orders from Confluent Kafka via Delta Lake Bronze
+      - name: clickstream
+        description: Raw clickstream events from Confluent Kafka via Delta Lake Bronze
+      - name: payments
+        description: Raw payment events from Confluent Kafka via Delta Lake Bronze
+      - name: weather
+        description: Raw weather sensor readings from Confluent Kafka via Delta Lake Bronze
+      - name: dlq
+        description: Dead Letter Queue records — schema violations and decode errors
+
+models:
+  - name: silver_orders
+    description: >
+      Cleaned order line items. One row per (order, item) via LATERAL VIEW EXPLODE.
+      Filters invalid records, normalises currency code, casts timestamps, rejects
+      negative quantities and prices.
+    columns:
+      - name: order_id
+        description: Unique order identifier
+        tests:
+          - not_null
+      - name: product_id
+        description: Product SKU from the exploded items array
+        tests:
+          - not_null
+      - name: currency_code
+        description: ISO-4217 currency; unknown codes normalised to UNKNOWN
+      - name: event_ts
+        description: Event timestamp cast to TIMESTAMP from epoch-ms
+      - name: line_total
+        description: quantity * unit_price for this line item
+
+  - name: silver_clickstream
+    description: >
+      Cleaned clickstream events. Lowercase page/action, uppercase country code,
+      filtered to valid records with non-null event_id and user_id.
+    columns:
+      - name: event_id
+        description: Unique event identifier
+        tests:
+          - not_null
+          - unique
+      - name: user_id
+        tests:
+          - not_null
+
+  - name: silver_payments
+    description: >
+      Cleaned payment events. Filters amount <= 0, normalises method/status/currency,
+      adds is_successful boolean flag.
+    columns:
+      - name: payment_id
+        tests:
+          - not_null
+          - unique
+      - name: amount
+        description: Payment amount; always > 0 in Silver
+        tests:
+          - not_null
+      - name: is_successful
+        description: True when status == 'success'
+
+  - name: silver_weather
+    description: >
+      Cleaned weather readings. Physical bounds enforced: temp -89..57°C,
+      humidity 0..100%. Lowercase condition, uppercase country code.
+    columns:
+      - name: city
+        tests:
+          - not_null
+      - name: temperature_c
+        description: Air temperature in Celsius, bounded to physical limits
+      - name: humidity_pct
+        description: Relative humidity percentage 0–100
+
+  - name: silver_dlq_audit
+    description: >
+      All DLQ events surfaced for downstream monitoring. Contains full error context
+      including error_type, source_topic, raw_payload, and Kafka offsets.
+    columns:
+      - name: error_type
+        description: "One of: AVRO_DECODE_ERROR, SCHEMA_VIOLATION, MISSING_REQUIRED_FIELD, TYPE_MISMATCH, INVALID_VALUE, INTENTIONAL_MALFORMED, UNKNOWN_ERROR"
+      - name: source_topic
+        description: The originating Kafka topic

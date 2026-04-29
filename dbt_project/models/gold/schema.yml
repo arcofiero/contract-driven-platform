@@ -1,0 +1,68 @@
+version: 2
+
+models:
+  - name: gold_daily_order_revenue
+    description: >
+      Daily order revenue aggregated by currency. Key business KPI table.
+      Counts distinct orders, total units sold, gross revenue, and average unit price.
+    columns:
+      - name: event_date
+        description: Calendar date of the orders
+        tests:
+          - not_null
+      - name: currency_code
+        description: ISO-4217 currency code
+        tests:
+          - not_null
+      - name: order_count
+        description: Distinct orders on this date + currency
+      - name: total_units_sold
+        description: Sum of all item quantities
+      - name: gross_revenue
+        description: Sum of all line_total values
+      - name: avg_unit_price
+        description: Average unit price across all line items
+
+  - name: gold_payment_success_rate
+    description: >
+      Payment outcome breakdown by date and payment method.
+      Core table for monitoring payment health and SLA tracking.
+    columns:
+      - name: event_date
+        tests:
+          - not_null
+      - name: payment_method
+        tests:
+          - not_null
+      - name: total_payments
+        description: All payments regardless of outcome
+      - name: successful_payments
+        description: Payments with status == success
+      - name: failed_payments
+        description: Payments with non-success status
+      - name: success_rate_pct
+        description: Percentage of successful payments (0–100)
+      - name: successful_amount
+        description: Total monetary value of successful payments
+
+  - name: gold_pipeline_health
+    description: >
+      DLQ violation counts grouped by date, source topic, and error type.
+      This is the primary contract-observability table — alerts fire when
+      violation_count spikes for a given topic/error_type combination.
+    columns:
+      - name: event_date
+        tests:
+          - not_null
+      - name: source_topic
+        tests:
+          - not_null
+      - name: error_type
+        tests:
+          - not_null
+      - name: violation_count
+        description: Number of DLQ events matching this date/topic/error_type slice
+      - name: first_seen_at
+        description: Earliest ingestion timestamp for this violation slice
+      - name: last_seen_at
+        description: Most recent ingestion timestamp for this violation slice
