@@ -1,0 +1,54 @@
+# Soda Core checks — Silver Orders
+# Runs after dbt silver_orders model completes.
+# Silver must be stricter than Bronze — all invalid data already filtered out.
+
+checks for silver_orders:
+
+  - row_count > 0:
+      name: silver_orders_has_rows
+
+  # No nulls allowed in Silver for key fields
+  - missing_count(order_id) = 0:
+      name: silver_orders_order_id_not_null
+  - missing_count(customer_id) = 0:
+      name: silver_orders_customer_id_not_null
+  - missing_count(product_id) = 0:
+      name: silver_orders_product_id_not_null
+  - missing_count(event_date) = 0:
+      name: silver_orders_event_date_not_null
+  - missing_count(event_ts) = 0:
+      name: silver_orders_event_ts_not_null
+
+  # Business rules enforced at Silver
+  - min(quantity) >= 0:
+      name: silver_orders_quantity_non_negative
+  - min(unit_price) >= 0:
+      name: silver_orders_unit_price_non_negative
+  - min(line_total) >= 0:
+      name: silver_orders_line_total_non_negative
+
+  # Currency normalisation — only known codes allowed in Silver
+  - invalid_count(currency_code) = 0:
+      name: silver_orders_currency_valid
+      valid values:
+        - USD
+        - EUR
+        - GBP
+        - INR
+        - JPY
+        - UNKNOWN
+
+  # Status must be a known lifecycle value
+  - invalid_count(status) = 0:
+      name: silver_orders_status_valid
+      valid values:
+        - created
+        - pending
+        - confirmed
+        - shipped
+        - cancelled
+
+  # No DLQ rows should bleed into Silver
+  - invalid_count(_is_valid) = 0:
+      name: silver_orders_no_invalid_rows
+      valid values: [true]

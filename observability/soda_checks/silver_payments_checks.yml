@@ -1,0 +1,40 @@
+# Soda Core checks — Silver Payments
+
+checks for silver_payments:
+
+  - row_count > 0:
+      name: silver_payments_has_rows
+
+  - missing_count(payment_id) = 0:
+      name: silver_payments_payment_id_not_null
+  - missing_count(order_id) = 0:
+      name: silver_payments_order_id_not_null
+  - missing_count(customer_id) = 0:
+      name: silver_payments_customer_id_not_null
+  - missing_count(amount) = 0:
+      name: silver_payments_amount_not_null
+
+  - duplicate_count(payment_id) = 0:
+      name: silver_payments_payment_id_unique
+
+  # Amount must be strictly positive in Silver
+  - min(amount) > 0:
+      name: silver_payments_amount_positive
+
+  - invalid_count(currency_code) = 0:
+      name: silver_payments_currency_valid
+      valid values: [USD, EUR, GBP, JPY, CAD, AUD, CHF]
+
+  - invalid_count(status) = 0:
+      name: silver_payments_status_valid
+      valid values:
+        - initiated
+        - processing
+        - completed
+        - failed
+        - refunded
+        - disputed
+
+  - invalid_count(_is_valid) = 0:
+      name: silver_payments_no_invalid_rows
+      valid values: [true]

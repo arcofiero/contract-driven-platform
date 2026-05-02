@@ -1,0 +1,5 @@
+# Soda Core configuration
+# Uses soda-core-spark-df to run checks against Delta Lake tables
+# via a live SparkSession — no JDBC or separate Spark server needed.
+data_source delta_lake:
+  type: spark_df

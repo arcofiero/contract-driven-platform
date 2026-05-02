@@ -1,0 +1,23 @@
+# Soda Core checks — Bronze Clickstream
+
+checks for bronze_clickstream:
+
+  - row_count > 0:
+      name: bronze_clickstream_has_rows
+
+  - missing_count(event_id) = 0:
+      name: bronze_clickstream_event_id_not_null
+  - missing_count(user_id) = 0:
+      name: bronze_clickstream_user_id_not_null
+  - missing_count(event_date) = 0:
+      name: bronze_clickstream_event_date_not_null
+
+  - invalid_percent(_is_valid) < 10:
+      name: bronze_clickstream_dlq_rate_under_10pct
+      valid values: [true]
+
+  - duplicate_count(event_id) = 0:
+      name: bronze_clickstream_event_id_unique
+
+  - freshness(_ingested_at) < 30m:
+      name: bronze_clickstream_freshness_30min

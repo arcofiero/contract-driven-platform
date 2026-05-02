@@ -1,0 +1,40 @@
+# Soda Core checks — Bronze DLQ
+# Monitors the health of the Dead Letter Queue itself.
+# These checks alert when violation counts spike unexpectedly.
+
+checks for bronze_dlq:
+
+  # DLQ should have events (proves fault injection is working)
+  - row_count > 0:
+      name: bronze_dlq_has_events
+
+  # Required fields on every DLQ record
+  - missing_count(error_type) = 0:
+      name: bronze_dlq_error_type_not_null
+  - missing_count(source_topic) = 0:
+      name: bronze_dlq_source_topic_not_null
+  - missing_count(error_message) = 0:
+      name: bronze_dlq_error_message_not_null
+  - missing_count(event_date) = 0:
+      name: bronze_dlq_event_date_not_null
+
+  # Error type must be one of the known taxonomy values
+  - invalid_count(error_type) = 0:
+      name: bronze_dlq_error_type_valid
+      valid values:
+        - AVRO_DECODE_ERROR
+        - SCHEMA_VIOLATION
+        - MISSING_REQUIRED_FIELD
+        - TYPE_MISMATCH
+        - INVALID_VALUE
+        - INTENTIONAL_MALFORMED
+        - UNKNOWN_ERROR
+
+  # Source topic must be one of our 4 known topics
+  - invalid_count(source_topic) = 0:
+      name: bronze_dlq_source_topic_valid
+      valid values:
+        - orders
+        - clickstream
+        - payments
+        - weather

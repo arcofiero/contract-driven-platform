@@ -1,0 +1,41 @@
+# Soda Core checks — Gold Pipeline Health
+# This is the contract-observability table itself.
+# We validate that the violation tracking is coherent.
+
+checks for gold_pipeline_health:
+
+  - row_count > 0:
+      name: gold_pipeline_health_has_rows
+
+  - missing_count(event_date) = 0:
+      name: gold_pipeline_health_event_date_not_null
+  - missing_count(source_topic) = 0:
+      name: gold_pipeline_health_source_topic_not_null
+  - missing_count(error_type) = 0:
+      name: gold_pipeline_health_error_type_not_null
+  - missing_count(violation_count) = 0:
+      name: gold_pipeline_health_violation_count_not_null
+
+  - min(violation_count) >= 1:
+      name: gold_pipeline_health_violation_count_positive
+
+  # Topics recorded must only be our known 4
+  - invalid_count(source_topic) = 0:
+      name: gold_pipeline_health_source_topic_valid
+      valid values: [orders, clickstream, payments, weather]
+
+  # Error types must only be known taxonomy values
+  - invalid_count(error_type) = 0:
+      name: gold_pipeline_health_error_type_valid
+      valid values:
+        - AVRO_DECODE_ERROR
+        - SCHEMA_VIOLATION
+        - MISSING_REQUIRED_FIELD
+        - TYPE_MISMATCH
+        - INVALID_VALUE
+        - INTENTIONAL_MALFORMED
+        - UNKNOWN_ERROR
+
+  # No duplicate date+topic+error_type combos
+  - duplicate_count(event_date, source_topic, error_type) = 0:
+      name: gold_pipeline_health_no_duplicate_slices

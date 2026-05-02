@@ -1,0 +1,27 @@
+# Soda Core checks — Gold Payment Success Rate
+
+checks for gold_payment_success_rate:
+
+  - row_count > 0:
+      name: gold_payment_success_has_rows
+
+  - missing_count(event_date) = 0:
+      name: gold_payment_success_event_date_not_null
+  - missing_count(payment_method) = 0:
+      name: gold_payment_success_method_not_null
+  - missing_count(total_payments) = 0:
+      name: gold_payment_success_total_not_null
+
+  # Rate must be a valid percentage 0-100
+  - min(success_rate_pct) >= 0:
+      name: gold_payment_success_rate_min
+  - max(success_rate_pct) <= 100:
+      name: gold_payment_success_rate_max
+
+  # Counts must be non-negative
+  - min(total_payments) >= 1:
+      name: gold_payment_success_total_positive
+  - min(successful_payments) >= 0:
+      name: gold_payment_success_successful_non_negative
+  - min(failed_payments) >= 0:
+      name: gold_payment_success_failed_non_negative

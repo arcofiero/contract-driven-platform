@@ -1,0 +1,34 @@
+# Soda Core checks — Bronze Orders
+# Runs after flink_consumer writes to Delta Lake bronze/orders
+# Purpose: catch schema violations and ingestion anomalies before Silver
+
+checks for bronze_orders:
+
+  # Completeness
+  - row_count > 0:
+      name: bronze_orders_has_rows
+
+  # Required fields must never be null
+  - missing_count(order_id) = 0:
+      name: bronze_orders_order_id_not_null
+  - missing_count(customer_id) = 0:
+      name: bronze_orders_customer_id_not_null
+  - missing_count(event_date) = 0:
+      name: bronze_orders_event_date_not_null
+  - missing_count(_ingested_at) = 0:
+      name: bronze_orders_ingested_at_not_null
+
+  # DLQ rate — _is_valid=false should stay near ~5% (intentional fault injection)
+  - invalid_percent(_is_valid) < 10:
+      name: bronze_orders_dlq_rate_under_10pct
+      valid values: [true]
+
+  # Numeric sanity — Bronze stores raw values, negatives indicate producer faults
+  - min(quantity) >= -1000:
+      name: bronze_orders_quantity_not_extreme
+  - min(unit_price) >= -10000:
+      name: bronze_orders_price_not_extreme
+
+  # Freshness — data should arrive within 30 minutes of ingestion
+  - freshness(_ingested_at) < 30m:
+      name: bronze_orders_freshness_30min

@@ -1,0 +1,23 @@
+# Soda Core checks — Silver Weather
+
+checks for silver_weather:
+
+  - row_count > 0:
+      name: silver_weather_has_rows
+
+  - missing_count(city) = 0:
+      name: silver_weather_city_not_null
+  - missing_count(country_code) = 0:
+      name: silver_weather_country_code_not_null
+  - missing_count(event_date) = 0:
+      name: silver_weather_event_date_not_null
+
+  # Physical bounds strictly enforced at Silver
+  - min(temperature_c) >= -89:
+      name: silver_weather_temperature_min
+  - max(temperature_c) <= 57:
+      name: silver_weather_temperature_max
+  - min(humidity_pct) >= 0:
+      name: silver_weather_humidity_min
+  - max(humidity_pct) <= 100:
+      name: silver_weather_humidity_max

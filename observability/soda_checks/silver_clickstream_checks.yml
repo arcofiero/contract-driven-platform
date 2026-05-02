@@ -1,0 +1,20 @@
+# Soda Core checks — Silver Clickstream
+
+checks for silver_clickstream:
+
+  - row_count > 0:
+      name: silver_clickstream_has_rows
+
+  - missing_count(event_id) = 0:
+      name: silver_clickstream_event_id_not_null
+  - missing_count(user_id) = 0:
+      name: silver_clickstream_user_id_not_null
+  - missing_count(event_date) = 0:
+      name: silver_clickstream_event_date_not_null
+
+  - duplicate_count(event_id) = 0:
+      name: silver_clickstream_event_id_unique
+
+  - invalid_count(_is_valid) = 0:
+      name: silver_clickstream_no_invalid_rows
+      valid values: [true]

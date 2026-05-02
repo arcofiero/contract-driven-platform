@@ -1,0 +1,27 @@
+# Soda Core checks — Gold Daily Order Revenue
+
+checks for gold_daily_order_revenue:
+
+  - row_count > 0:
+      name: gold_order_revenue_has_rows
+
+  - missing_count(event_date) = 0:
+      name: gold_order_revenue_event_date_not_null
+  - missing_count(currency_code) = 0:
+      name: gold_order_revenue_currency_not_null
+  - missing_count(order_count) = 0:
+      name: gold_order_revenue_order_count_not_null
+
+  # Aggregated values must make business sense
+  - min(order_count) >= 1:
+      name: gold_order_revenue_order_count_positive
+  - min(gross_revenue) >= 0:
+      name: gold_order_revenue_revenue_non_negative
+  - min(total_units_sold) >= 0:
+      name: gold_order_revenue_units_non_negative
+  - min(avg_unit_price) >= 0:
+      name: gold_order_revenue_avg_price_non_negative
+
+  # No duplicate date+currency combinations
+  - duplicate_count(event_date, currency_code) = 0:
+      name: gold_order_revenue_no_duplicate_date_currency
