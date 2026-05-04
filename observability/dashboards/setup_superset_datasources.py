@@ -30,34 +30,51 @@ PASSWORD = "admin"
 DB_PATH  = os.path.join(os.path.dirname(__file__), "gold_data.db")
 
 
-def get_token() -> str:
-    resp = requests.post(f"{BASE_URL}/api/v1/security/login", json={
+_session = requests.Session()
+
+
+def get_tokens() -> tuple[str, str]:
+    """
+    Return (access_token, csrf_token) using a persistent session so Flask-WTF
+    can match the CSRF token against the session cookie.
+    """
+    resp = _session.post(f"{BASE_URL}/api/v1/security/login", json={
         "username": USERNAME,
         "password": PASSWORD,
         "provider": "db",
         "refresh": True,
     })
     resp.raise_for_status()
-    return resp.json()["access_token"]
+    access_token = resp.json()["access_token"]
+
+    csrf_resp = _session.get(
+        f"{BASE_URL}/api/v1/security/csrf_token/",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    csrf_resp.raise_for_status()
+    csrf_token = csrf_resp.json()["result"]
+    return access_token, csrf_token
 
 
-def api(method: str, path: str, token: str, **kwargs):
+def api(method: str, path: str, token: str, csrf_token: str = "", **kwargs):
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
+        "X-CSRFToken": csrf_token,
+        "Referer": BASE_URL,
     }
-    resp = getattr(requests, method)(f"{BASE_URL}{path}", headers=headers, **kwargs)
+    resp = getattr(_session, method)(f"{BASE_URL}{path}", headers=headers, **kwargs)
     if not resp.ok:
         print(f"  ERROR {resp.status_code}: {resp.text[:300]}")
     return resp
 
 
-def setup(token: str):
+def setup(token: str, csrf: str):
     print("=== Setting up Superset datasources and dashboard ===\n")
 
     # ── 1. Create database connection ─────────────────────────────────────────
     print("1. Creating database connection...")
-    r = api("post", "/api/v1/database/", token, json={
+    r = api("post", "/api/v1/database/", token, csrf, json={
         "database_name": "contract_driven_platform_gold",
         "sqlalchemy_uri": f"sqlite:///{DB_PATH}",
         "expose_in_sqllab": True,
@@ -68,8 +85,17 @@ def setup(token: str):
         db_id = r.json()["id"]
         print(f"   Database created (id={db_id})")
     else:
-        r2 = api("get", "/api/v1/database/?q=(filters:!((col:database_name,opr:eq,val:contract_driven_platform_gold)))", token)
-        db_id = r2.json()["result"][0]["id"] if r2.ok and r2.json()["count"] > 0 else 1
+        # Fetch all databases and find ours by name
+        r2 = api("get", "/api/v1/database/", token, csrf)
+        db_id = None
+        if r2.ok:
+            for db in r2.json().get("result", []):
+                if db["database_name"] == "contract_driven_platform_gold":
+                    db_id = db["id"]
+                    break
+        if db_id is None:
+            print("   Could not create or find database — aborting")
+            return
         print(f"   Using existing database (id={db_id})")
 
     # ── 2. Create datasets ────────────────────────────────────────────────────
@@ -80,7 +106,7 @@ def setup(token: str):
         "gold_pipeline_health": None,
     }
     for table_name in datasets:
-        r = api("post", "/api/v1/dataset/", token, json={
+        r = api("post", "/api/v1/dataset/", token, csrf, json={
             "database": db_id,
             "table_name": table_name,
             "schema": None,
@@ -191,7 +217,7 @@ def setup(token: str):
             "datasource_type": "table",
             "params": json.dumps(chart_def["payload"]["params"]),
         }
-        r = api("post", "/api/v1/chart/", token, json=payload)
+        r = api("post", "/api/v1/chart/", token, csrf, json=payload)
         if r.ok:
             charts[chart_def["key"]] = r.json()["id"]
             print(f"   Chart: {chart_def['payload']['slice_name']} (id={charts[chart_def['key']]})")
@@ -237,23 +263,18 @@ def setup(token: str):
             "meta": {"background": "BACKGROUND_TRANSPARENT"},
         }
 
-    r = api("post", "/api/v1/dashboard/", token, json={
+    r = api("post", "/api/v1/dashboard/", token, csrf, json={
         "dashboard_title": "Contract-Driven Platform - Pipeline Health",
         "slug": "contract-driven-pipeline-health",
         "published": True,
         "position_json": json.dumps(position),
-        "metadata": json.dumps({
-            "color_scheme": "supersetColors",
-            "refresh_frequency": 300,
-            "timed_refresh_immune_slices": [],
-        }),
         "owners": [],
     })
     if r.ok:
         dash_id = r.json()["id"]
         print(f"   Dashboard created (id={dash_id})")
         if chart_ids:
-            api("put", f"/api/v1/dashboard/{dash_id}", token, json={"charts": chart_ids})
+            api("put", f"/api/v1/dashboard/{dash_id}", token, csrf, json={"charts": chart_ids})
             print(f"   {len(chart_ids)} charts added to dashboard")
         print(f"\n=== Setup complete ===")
         print(f"Open: http://localhost:8088/superset/dashboard/{dash_id}/")
@@ -262,5 +283,5 @@ def setup(token: str):
 
 
 if __name__ == "__main__":
-    token = get_token()
-    setup(token)
+    token, csrf = get_tokens()
+    setup(token, csrf)

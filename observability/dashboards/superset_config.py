@@ -37,3 +37,7 @@ CACHE_CONFIG = {
 ROW_LIMIT = 50000
 SUPERSET_WEBSERVER_PORT = 8088
 ENABLE_PROXY_FIX = True
+
+# ── API / dev overrides ───────────────────────────────────────────────────────
+WTF_CSRF_ENABLED = False
+PREVENT_UNSAFE_DB_CONNECTIONS = False  # allow SQLite for dev Gold data
