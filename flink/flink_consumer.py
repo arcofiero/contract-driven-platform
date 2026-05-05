@@ -53,6 +53,13 @@ TOPIC_TO_KEY = {
 
 
 def _extract_event_date(record: dict, topic_key: str) -> str:
+    # Orders use ISO string "event_timestamp"; others use epoch-ms "event_ts"
+    iso_ts = record.get("event_timestamp")
+    if iso_ts:
+        try:
+            return iso_ts[:10]  # "YYYY-MM-DD"
+        except Exception:
+            pass
     ts_ms = record.get("event_ts") or record.get("timestamp")
     if ts_ms:
         try:
@@ -62,6 +69,49 @@ def _extract_event_date(record: dict, topic_key: str) -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+def _normalize_record(record: dict, topic_key: str) -> dict:
+    """Rename Avro field names to match Bronze Delta schema column names."""
+    if topic_key == "weather":
+        renames = {
+            "temperature_c":  "temperature",
+            "feels_like_c":   "feels_like",
+            "humidity_pct":   "humidity",
+            "wind_speed_ms":  "wind_speed",
+            "pressure_hpa":   "pressure",
+            "country_code":   "country",
+            "weather_description": "description",
+            "event_timestamp": "_event_timestamp_iso",
+        }
+        for src, dst in renames.items():
+            if src in record:
+                record[dst] = record.pop(src)
+        # Convert event_timestamp ISO string → epoch ms event_ts
+        iso = record.pop("_event_timestamp_iso", None)
+        if iso:
+            try:
+                dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+                record["event_ts"] = int(dt.timestamp() * 1000)
+            except Exception:
+                record.setdefault("event_ts", None)
+    elif topic_key == "payments":
+        renames = {
+            "payment_method":          "method",
+            "processor":               "provider",
+            "event_timestamp":         "_event_timestamp_iso",
+        }
+        for src, dst in renames.items():
+            if src in record:
+                record[dst] = record.pop(src)
+        iso = record.pop("_event_timestamp_iso", None)
+        if iso:
+            try:
+                dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+                record["event_ts"] = int(dt.timestamp() * 1000)
+            except Exception:
+                record.setdefault("event_ts", None)
+    return record
+
+
 def _enrich_with_metadata(
     record: dict,
     msg: Message,
@@ -69,8 +119,18 @@ def _enrich_with_metadata(
     schema_version: Optional[str],
     is_valid: bool,
 ) -> dict:
+    # Normalize orders: convert ISO event_timestamp -> epoch-ms event_ts for Bronze schema
+    if topic_key == "orders" and "event_timestamp" in record:
+        try:
+            from datetime import timezone as _tz
+            iso = record.pop("event_timestamp")
+            dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+            record["event_ts"] = int(dt.timestamp() * 1000)
+        except Exception:
+            record.setdefault("event_ts", None)
+
     record["event_date"]       = _extract_event_date(record, topic_key)
-    record["_ingested_at"]     = datetime.now(timezone.utc).isoformat()
+    record["_ingested_at"]     = datetime.now(timezone.utc).replace(tzinfo=None)
     record["_source_topic"]    = msg.topic()
     record["_kafka_partition"] = msg.partition()
     record["_kafka_offset"]    = msg.offset()
@@ -195,6 +255,7 @@ class FlinkConsumer:
             )
             return
 
+        record = _normalize_record(record, topic_key)
         record = _enrich_with_metadata(record, msg, topic_key, schema_version, is_valid=True)
         self._writer.add(topic_key, record)
         self._metrics["messages_valid"] += 1
@@ -219,7 +280,7 @@ class FlinkConsumer:
 
     def _validate_record(self, record: dict, topic_key: str) -> Optional[str]:
         required_by_topic = {
-            "orders":      ["order_id", "customer_id", "product_id"],
+            "orders":      ["order_id", "customer_id"],  # product_id lives inside items[]
             "clickstream": ["event_id", "user_id"],
             "payments":    ["payment_id", "order_id", "customer_id"],
             "weather":     ["city"],

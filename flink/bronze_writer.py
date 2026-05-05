@@ -131,21 +131,22 @@ class BronzeWriter:
         schema: StructType,
         now_utc: datetime,
     ) -> DataFrame:
-        ingested_at_str = now_utc.isoformat()
+        ingested_at_naive = now_utc.replace(tzinfo=None)
         enriched = []
         for row in rows:
             r = dict(row)
-            if "_ingested_at" not in r or r["_ingested_at"] is None:
-                r["_ingested_at"] = ingested_at_str
+            val = r.get("_ingested_at")
+            if val is None:
+                r["_ingested_at"] = ingested_at_naive
+            elif isinstance(val, str):
+                r["_ingested_at"] = ingested_at_naive
+            elif hasattr(val, "tzinfo") and val.tzinfo is not None:
+                r["_ingested_at"] = val.replace(tzinfo=None)
             if "event_date" not in r or r["event_date"] is None:
                 r["event_date"] = now_utc.strftime("%Y-%m-%d")
             enriched.append(r)
 
-        df = self._spark.createDataFrame(enriched, schema=schema)
-
-        if "_ingested_at" in [f.name for f in schema.fields]:
-            df = df.withColumn("_ingested_at", F.to_timestamp(F.col("_ingested_at")))
-        return df
+        return self._spark.createDataFrame(enriched, schema=schema)
 
     def _write_delta(
         self,

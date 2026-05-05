@@ -1,28 +1,28 @@
-{{
-    config(
-        materialized='table',
-        file_format='delta',
-        schema='silver'
-    )
-}}
+{{ config(
+    materialized='table',
+    file_format='delta',
+    schema='silver'
+) }}
 
 SELECT
-    city,
-    UPPER(TRIM(country_code))               AS country_code,
-    CAST(event_ts / 1000 AS TIMESTAMP)      AS event_ts,
+    INITCAP(TRIM(city))                          AS city,
+    UPPER(TRIM(country))                         AS country_code,
+    CAST(temperature AS DOUBLE)                  AS temperature_c,
+    CAST(feels_like  AS DOUBLE)                  AS feels_like_c,
+    CAST(humidity    AS INT)                     AS humidity_pct,
+    CAST(pressure    AS INT)                     AS pressure_hpa,
+    CAST(wind_speed  AS DOUBLE)                  AS wind_speed_ms,
+    LOWER(TRIM(description))                     AS weather_description,
+    TIMESTAMP(CAST(event_ts / 1000 AS BIGINT))   AS event_ts,
     event_date,
-    CAST(temperature_c AS DECIMAL(6,2))     AS temperature_c,
-    CAST(humidity_pct AS DECIMAL(5,2))      AS humidity_pct,
-    CAST(wind_speed_kmh AS DECIMAL(6,2))    AS wind_speed_kmh,
-    LOWER(TRIM(condition))                  AS condition,
-    _ingested_at,
-    _source_topic,
-    _kafka_partition,
-    _kafka_offset,
-    _schema_version
-FROM {{ source('bronze', 'weather') }}
+    _ingested_at                                 AS ingested_at,
+    _kafka_partition                             AS kafka_partition,
+    _kafka_offset                                AS kafka_offset,
+    CURRENT_TIMESTAMP()                          AS dbt_updated_at
+FROM delta.`{{ env_var('LOCAL_DELTA_PATH', '/tmp/contract-driven-platform') }}/delta/bronze/weather`
 WHERE _is_valid = true
   AND city IS NOT NULL
-  AND TRIM(city) != ''
-  AND temperature_c BETWEEN -89 AND 57
-  AND humidity_pct BETWEEN 0 AND 100
+  AND temperature IS NOT NULL
+  AND temperature BETWEEN -89 AND 60
+  AND humidity IS NOT NULL
+  AND humidity BETWEEN 0 AND 100

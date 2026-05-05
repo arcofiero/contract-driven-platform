@@ -23,11 +23,9 @@ checks for bronze_orders:
       name: bronze_orders_dlq_rate_under_10pct
       valid values: [true]
 
-  # Numeric sanity — Bronze stores raw values, negatives indicate producer faults
-  - min(quantity) >= -1000:
-      name: bronze_orders_quantity_not_extreme
-  - min(unit_price) >= -10000:
-      name: bronze_orders_price_not_extreme
+  # Numeric sanity — total_amount lives at order level (items array not queryable directly by Soda)
+  - min(total_amount) >= 0:
+      name: bronze_orders_total_amount_not_negative
 
   # Freshness — data should arrive within 30 minutes of ingestion
   - freshness(_ingested_at) < 30m:

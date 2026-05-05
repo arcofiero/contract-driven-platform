@@ -9,7 +9,7 @@ No business transformations happen here — that is Silver's job.
 from pyspark.sql.types import (
     StructType, StructField,
     StringType, LongType, DoubleType, IntegerType,
-    TimestampType, BooleanType,
+    TimestampType, BooleanType, ArrayType,
 )
 
 # Shared ingestion metadata columns appended to every Bronze table
@@ -22,19 +22,31 @@ INGESTION_METADATA_FIELDS = [
     StructField("_is_valid",         BooleanType(),   nullable=False),
 ]
 
-# Orders Bronze
+ORDER_ITEM_SCHEMA = StructType([
+    StructField("product_id", StringType(), nullable=True),
+    StructField("name",       StringType(), nullable=True),
+    StructField("unit_price", DoubleType(), nullable=True),
+    StructField("quantity",   IntegerType(), nullable=True),
+    StructField("subtotal",   DoubleType(), nullable=True),
+])
+
+SHIPPING_ADDRESS_SCHEMA = StructType([
+    StructField("street",  StringType(), nullable=True),
+    StructField("city",    StringType(), nullable=True),
+    StructField("country", StringType(), nullable=True),
+])
+
+# Orders Bronze — matches actual Avro schema (items is nested array, event_ts in epoch ms)
 BRONZE_ORDERS_SCHEMA = StructType([
-    StructField("order_id",     StringType(),  nullable=False),
-    StructField("customer_id",  StringType(),  nullable=False),
-    StructField("product_id",   StringType(),  nullable=False),
-    StructField("quantity",     IntegerType(), nullable=True),
-    StructField("unit_price",   DoubleType(),  nullable=True),
-    StructField("total_amount", DoubleType(),  nullable=True),
-    StructField("currency",     StringType(),  nullable=True),
-    StructField("status",       StringType(),  nullable=True),
-    StructField("region",       StringType(),  nullable=True),
-    StructField("event_ts",     LongType(),    nullable=True),
-    StructField("event_date",   StringType(),  nullable=False),
+    StructField("order_id",        StringType(),                    nullable=False),
+    StructField("customer_id",     StringType(),                    nullable=False),
+    StructField("status",          StringType(),                    nullable=True),
+    StructField("currency",        StringType(),                    nullable=True),
+    StructField("total_amount",    DoubleType(),                    nullable=True),
+    StructField("items",           ArrayType(ORDER_ITEM_SCHEMA),    nullable=True),
+    StructField("shipping_address", SHIPPING_ADDRESS_SCHEMA,        nullable=True),
+    StructField("event_ts",        LongType(),                      nullable=True),
+    StructField("event_date",      StringType(),                    nullable=False),
 ] + INGESTION_METADATA_FIELDS)
 
 # Clickstream Bronze
