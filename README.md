@@ -120,6 +120,14 @@ pip install -r requirements.txt
 
 ---
 
+## Case Study
+
+A full engineering write-up covering the 10-day build — architecture decisions, debugging challenges, and production tradeoffs:
+
+**[→ Read the case study](docs/case_study.md)**
+
+---
+
 ## Author
 
 **Archit Raj**
