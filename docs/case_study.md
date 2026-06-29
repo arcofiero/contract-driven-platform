@@ -2,7 +2,7 @@
 
 **Author:** Archit Raj  
 **Duration:** 10-day build  
-**Stack:** Confluent Kafka · Avro · Python Flink · Delta Lake · dbt · Soda Core · Airflow · Superset · Terraform
+**Stack:** Confluent Kafka · Avro · Spark (micro-batch) · Delta Lake · dbt · Soda Core · Airflow · Superset · Terraform
 
 ---
 
@@ -26,7 +26,7 @@ A medallion data platform where **every byte entering the system must pass a sch
 Kafka Topics (4 sources)
   ↓  Avro + Schema Registry (contract at write time)
   ↓
-Python Flink Consumer
+Kafka Ingest Consumer
   ↓ [valid]    Delta Lake Bronze   ← raw + metadata
   ↓ [invalid]  DLQ topic + Delta Bronze/DLQ
   ↓
@@ -69,7 +69,7 @@ Key schemas:
 - `payment_event.avsc` — amount, method, provider, status
 - `weather_event.avsc` — temperature, humidity, wind, city
 
-### Day 4 — Flink Consumer → Delta Lake Bronze
+### Day 4 — Kafka Ingest Consumer → Delta Lake Bronze
 The core ingestion layer. A micro-batch consumer polls all four topics, deserializes Avro, validates required fields, and routes:
 
 - **Valid events** → `BronzeWriter` buffer → Delta Lake `bronze/<topic>`
@@ -118,7 +118,7 @@ All 12 check files pass green. The runner (`run_soda_checks.py`) exits with code
 ### Day 7 — Airflow Orchestration
 Two DAGs:
 
-- **`pipeline_orchestrator`** — sequences: producers → Flink consumer → dbt → Soda checks → Superset refresh
+- **`pipeline_orchestrator`** — sequences: producers → Kafka ingest consumer → dbt → Soda checks → Superset refresh
 - **`contract_validation_dag`** — runs Soda checks on a schedule independently, alerts on failure
 
 Tasks are templated with `BashOperator` and `PythonOperator`. The DAG dependency graph enforces that dbt Silver never runs before Bronze is populated, and Soda checks never run before dbt completes.
@@ -164,7 +164,7 @@ Silent data loss is strictly worse than visible failure. Every rejected event ca
 - You have an audit trail for compliance
 
 ### Why field-name normalization in the consumer rather than dbt?
-The `_normalize_record()` function in `flink_consumer.py` maps Avro field names (e.g. `temperature_c`, `payment_method`) to Bronze schema names (`temperature`, `method`) at ingest time. Doing it here keeps Bronze schemas stable — dbt Silver models can be written assuming canonical column names without worrying about what the upstream Avro revision called the field.
+The `_normalize_record()` function in `kafka_consumer.py` maps Avro field names (e.g. `temperature_c`, `payment_method`) to Bronze schema names (`temperature`, `method`) at ingest time. Doing it here keeps Bronze schemas stable — dbt Silver models can be written assuming canonical column names without worrying about what the upstream Avro revision called the field.
 
 ### Why at-least-once over exactly-once?
 Kafka offset commits happen only after a successful Delta write. If the process crashes mid-flush, the same messages are re-consumed and re-written. Delta's ACID guarantees mean a duplicate write is idempotent at the file level. The tradeoff: Silver deduplication (using `DISTINCT` or surrogate key dedup) handles the rare duplicate. This is simpler to operate than Kafka transactions with no meaningful correctness cost.
@@ -204,7 +204,7 @@ Kafka offset commits happen only after a successful Delta write. If the process 
 
 2. **Schema evolution strategy** — document what changes are backward-compatible (adding optional fields) vs. breaking (removing fields, changing types) and enforce via CI checks against Schema Registry.
 
-3. **Separate Spark clusters for ingestion and transformation** — the Flink consumer and dbt share a JVM in this build; in production they'd be separate compute with separate scaling policies.
+3. **Separate Spark clusters for ingestion and transformation** — the Kafka ingest consumer and dbt share a JVM in this build; in production they'd be separate compute with separate scaling policies.
 
 4. **Alerting integration** — Soda check failures currently exit with code 1. In production, pipe those to PagerDuty or Slack via Soda's built-in notification hooks.
 

@@ -1,5 +1,5 @@
 """
-config/flink_config.py
+config/ingest_config.py
 -----------------------
 Central config for the contract-driven platform.
 Kafka + Schema Registry are required (Confluent Cloud).
@@ -36,7 +36,7 @@ KAFKA_CONFIG = {
     "sasl.mechanisms":      "PLAIN",
     "sasl.username":        _require("CONFLUENT_API_KEY"),
     "sasl.password":        _require("CONFLUENT_API_SECRET"),
-    "group.id":             _optional("FLINK_CONSUMER_GROUP", "flink-bronze-consumer"),
+    "group.id":             _optional("INGEST_CONSUMER_GROUP", "ingest-bronze-consumer"),
     "auto.offset.reset":    _optional("KAFKA_AUTO_OFFSET_RESET", "earliest"),
     "enable.auto.commit":   False,
     "session.timeout.ms":   30000,
@@ -120,7 +120,7 @@ def get_spark_conf() -> dict:
 
 
 def log_config_summary() -> None:
-    logger.info("=== Flink Consumer Config Summary ===")
+    logger.info("=== Kafka Ingest Consumer Config Summary ===")
     logger.info(f"  Bootstrap servers : {KAFKA_CONFIG['bootstrap.servers']}")
     logger.info(f"  Consumer group    : {KAFKA_CONFIG['group.id']}")
     logger.info(f"  Source topics     : {ALL_SOURCE_TOPICS}")

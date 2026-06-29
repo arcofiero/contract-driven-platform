@@ -1,5 +1,5 @@
 """
-flink/dlq_handler.py
+ingest/dlq_handler.py
 ---------------------
 Dead Letter Queue handler.
 
@@ -19,7 +19,7 @@ from typing import Optional
 
 from confluent_kafka import Producer, KafkaException
 
-from config.flink_config import (
+from config.ingest_config import (
     KAFKA_CONFIG,
     TOPIC_DLQ,
     MAX_RETRIES,

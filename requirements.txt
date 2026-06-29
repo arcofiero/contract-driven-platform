@@ -1,12 +1,9 @@
-# Kafka clients
-kafka-python>=2.0.2
-confluent-kafka>=2.3.0
+# Kafka client
+confluent-kafka[schemaregistry,avro]>=2.3.0
 
 # Avro / serialization
 fastavro>=1.9.0
 
-# Stream processing
-apache-flink>=1.18.0
 
 # Delta Lake / Spark
 delta-spark>=3.1.0

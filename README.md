@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![Apache Kafka](https://img.shields.io/badge/Confluent_Kafka-Cloud-231F20?logo=apachekafka&logoColor=white)
-![Apache Flink](https://img.shields.io/badge/Apache_Flink-PyFlink-E6526F?logo=apacheflink&logoColor=white)
+![Apache Spark](https://img.shields.io/badge/Apache_Spark-micro--batch-E25A1C?logo=apachespark&logoColor=white)
 ![Delta Lake](https://img.shields.io/badge/Delta_Lake-S3-003366)
 ![dbt](https://img.shields.io/badge/dbt-Spark_Adapter-FF694B?logo=dbt&logoColor=white)
 ![Airflow](https://img.shields.io/badge/Apache_Airflow-Orchestration-017CEE?logo=apacheairflow&logoColor=white)
@@ -46,8 +46,8 @@ flowchart TD
         DLQ[dead-letter-queue]
     end
 
-    subgraph Flink["⚡ Apache Flink Consumer"]
-        FC[Flink Consumer\nAvro Deserializer\nTwo-Layer Validation]
+    subgraph Ingest["⚡ Kafka Ingest (Spark micro-batch)"]
+        FC[Kafka Ingest Consumer\nAvro Deserializer\nTwo-Layer Validation]
         DH[DLQ Handler\n7 Error Categories]
     end
 
@@ -97,7 +97,7 @@ flowchart TD
     SC2 -->|pass| G1 & G2 & G3
     G1 & G2 & G3 --> SC3
     SC3 --> DB
-    DAG1 & DAG2 -.->|orchestrates| Flink & Silver & Gold
+    DAG1 & DAG2 -.->|orchestrates| Ingest & Silver & Gold
     DAG1 & DAG2 -.-> OL
 ```
 
@@ -109,7 +109,7 @@ flowchart TD
 |---|---|
 | Event streaming | Confluent Kafka (Cloud) |
 | Schema enforcement | Confluent Schema Registry — Avro |
-| Stream processing | Apache Flink (PyFlink micro-batch) |
+| Kafka ingest | confluent-kafka consumer, Spark micro-batch Delta writes |
 | Storage | Delta Lake on AWS S3 |
 | Transformation | dbt with Spark adapter |
 | Data quality | Soda Core — 75 checks across 3 layers |
@@ -147,8 +147,8 @@ contract-driven-platform/
 │   ├── clickstream_producer.py
 │   ├── payments_producer.py
 │   └── weather_producer.py
-├── flink/                  # Flink consumer + Bronze writer + DLQ handler
-│   ├── flink_consumer.py
+├── ingest/                 # Kafka consumer + Bronze writer + DLQ handler
+│   ├── kafka_consumer.py
 │   ├── bronze_writer.py
 │   └── dlq_handler.py
 ├── bronze/                 # Bronze Delta Lake schemas
@@ -166,7 +166,7 @@ contract-driven-platform/
 │   ├── pipeline_orchestrator.py
 │   └── contract_validation_dag.py
 ├── config/                 # Centralised config (env-loaded)
-│   └── flink_config.py
+│   └── ingest_config.py
 ├── observability/          # Superset dashboard exports
 │   └── dashboards/
 ├── tests/                  # Unit tests — no live infra needed
@@ -187,7 +187,7 @@ The core design principle: data contracts are enforced at **write time**, not di
 **Layer 1 — Schema Registry (Producer → Kafka)**
 Every event must conform to a registered Avro schema before it enters a Kafka topic. Non-conforming events never reach the consumer.
 
-**Layer 2 — Flink Validation (Kafka → Bronze)**
+**Layer 2 — Ingest Validation (Kafka → Bronze)**
 Two-pass validation on every consumed message:
 1. Structural check — required fields present, correct types
 2. Business rule check — amounts positive, timestamps in range, enums valid
@@ -234,8 +234,8 @@ pip install -r requirements.txt
 # Start all producers (fires ~5% bad events automatically)
 python run_all_producers.py
 
-# Run Flink consumer — writes Delta tables to /tmp/delta/ by default
-python flink/flink_consumer.py
+# Run Kafka ingest consumer — writes Delta tables to /tmp/delta/ by default
+python ingest/kafka_consumer.py
 
 # Run dbt transformations
 cd dbt_project && dbt run --profiles-dir ~/.dbt && cd ..
@@ -265,7 +265,7 @@ ACID transactions, schema enforcement at write time, and time travel. The Bronze
 **Why two Airflow DAGs?**
 Hourly quality checks decouple contract validation from ingest frequency. A schema drift or data anomaly is visible within an hour, even when the full pipeline runs daily.
 
-**Why at-least-once semantics in Flink?**
+**Why at-least-once semantics in the Kafka consumer?**
 Simpler to operate and reason about for a Bronze ingest layer. Exactly-once would require transactional producers and coordinated Delta checkpointing — the right call for payments at scale, noted as a future improvement.
 
 ---
@@ -273,7 +273,7 @@ Simpler to operate and reason about for a Bronze ingest layer. Exactly-once woul
 ## What's Next
 
 - **Exactly-once semantics** — transactional Kafka producers + Delta Lake checkpointing for the payments topic
-- **Real Flink cluster** — proper streaming topology with watermarking and windowed aggregations (currently micro-batch)
+- **True streaming**: a real streaming topology (Spark Structured Streaming or Flink) with watermarking and windowed aggregations; the consumer is currently a poll-loop micro-batch
 - **Terraform automation** — stubs exist in `infra/`; wiring up would make the full environment reproducible from `terraform apply`
 - **dbt/Soda consolidation** — dbt schema YAML already defines column contracts; a future iteration could replace Soda with native dbt tests
 

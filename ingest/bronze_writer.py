@@ -1,5 +1,5 @@
 """
-flink/bronze_writer.py
+ingest/bronze_writer.py
 -----------------------
 Writes decoded Kafka events to the Delta Lake Bronze layer on AWS S3.
 
@@ -20,7 +20,7 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import StructType
 from delta.pip_utils import configure_spark_with_delta_pip
 
-from config.flink_config import (
+from config.ingest_config import (
     DELTA_BASE_PATH,
     DELTA_WRITE_MODE,
     CHECKPOINT_BASE,

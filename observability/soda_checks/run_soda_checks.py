@@ -35,7 +35,7 @@ logger = logging.getLogger("soda_runner")
 
 CHECKS_DIR = Path(__file__).parent
 
-# ── Storage paths (mirrors config/flink_config.py logic) ─────────────────────
+# ── Storage paths (mirrors config/ingest_config.py logic) ─────────────────────
 USE_S3 = os.getenv("USE_S3", "false").lower() == "true"
 
 if USE_S3:

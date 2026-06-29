@@ -25,17 +25,17 @@ os.environ.setdefault("S3_BUCKET",                            "test-bucket")
 
 class TestExtractEventDate:
     def test_valid_epoch_ms(self):
-        from flink.flink_consumer import _extract_event_date
+        from ingest.kafka_consumer import _extract_event_date
         ts_ms = int(datetime(2024, 6, 15, tzinfo=timezone.utc).timestamp() * 1000)
         assert _extract_event_date({"event_ts": ts_ms}, "orders") == "2024-06-15"
 
     def test_missing_ts_falls_back_to_today(self):
-        from flink.flink_consumer import _extract_event_date
+        from ingest.kafka_consumer import _extract_event_date
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         assert _extract_event_date({}, "orders") == today
 
     def test_invalid_ts_falls_back(self):
-        from flink.flink_consumer import _extract_event_date
+        from ingest.kafka_consumer import _extract_event_date
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         assert _extract_event_date({"event_ts": "bad"}, "orders") == today
 
@@ -49,7 +49,7 @@ class TestEnrichWithMetadata:
         return msg
 
     def test_all_metadata_fields_injected(self):
-        from flink.flink_consumer import _enrich_with_metadata
+        from ingest.kafka_consumer import _enrich_with_metadata
         record = {"order_id": "ord-001", "event_ts": None}
         msg    = self._mock_msg(topic="orders", partition=1, offset=99)
         result = _enrich_with_metadata(record, msg, "orders", "1", is_valid=True)
@@ -62,7 +62,7 @@ class TestEnrichWithMetadata:
         assert "event_date"   in result
 
     def test_invalid_flag(self):
-        from flink.flink_consumer import _enrich_with_metadata
+        from ingest.kafka_consumer import _enrich_with_metadata
         msg    = self._mock_msg()
         result = _enrich_with_metadata({}, msg, "orders", None, is_valid=False)
         assert result["_is_valid"] is False
@@ -70,8 +70,8 @@ class TestEnrichWithMetadata:
 
 class TestValidateRecord:
     def _get_validator(self):
-        from flink.flink_consumer import FlinkConsumer
-        return object.__new__(FlinkConsumer)._validate_record
+        from ingest.kafka_consumer import KafkaIngestConsumer
+        return object.__new__(KafkaIngestConsumer)._validate_record
 
     def test_valid_order(self):
         v = self._get_validator()
@@ -114,10 +114,10 @@ class TestValidateRecord:
 
 
 class TestDLQHandler:
-    @patch("flink.dlq_handler.Producer")
+    @patch("ingest.dlq_handler.Producer")
     def test_handle_queues_row_and_produces(self, mock_producer_cls):
         mock_producer_cls.return_value = MagicMock()
-        from flink.dlq_handler import DLQHandler, DLQErrorType
+        from ingest.dlq_handler import DLQHandler, DLQErrorType
         handler = DLQHandler()
         try:
             raise ValueError("test error")
@@ -134,10 +134,10 @@ class TestDLQHandler:
         assert rows[0]["_is_valid"]     is False
         assert rows[0]["_kafka_offset"] == 10
 
-    @patch("flink.dlq_handler.Producer")
+    @patch("ingest.dlq_handler.Producer")
     def test_flush_clears_buffer(self, mock_producer_cls):
         mock_producer_cls.return_value = MagicMock()
-        from flink.dlq_handler import DLQHandler, DLQErrorType
+        from ingest.dlq_handler import DLQHandler, DLQErrorType
         handler = DLQHandler()
         for i in range(3):
             try:
@@ -150,10 +150,10 @@ class TestDLQHandler:
         assert len(handler.flush_rows()) == 3
         assert len(handler.flush_rows()) == 0
 
-    @patch("flink.dlq_handler.Producer")
+    @patch("ingest.dlq_handler.Producer")
     def test_none_raw_bytes_handled_gracefully(self, mock_producer_cls):
         mock_producer_cls.return_value = MagicMock()
-        from flink.dlq_handler import DLQHandler, DLQErrorType
+        from ingest.dlq_handler import DLQHandler, DLQErrorType
         handler = DLQHandler()
         try:
             raise ValueError("tombstone")

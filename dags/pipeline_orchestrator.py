@@ -7,7 +7,7 @@ Schedule: every 30 minutes
 Pipeline stages (in dependency order):
 
   1. wait_for_kafka_lag      — sense-check: confirms Kafka topics have messages
-  2. run_flink_consumer      — runs flink_consumer.py for BATCH_TIMEOUT_SEC seconds
+  2. run_kafka_ingest      — runs ingest/kafka_consumer.py for BATCH_TIMEOUT_SEC seconds
   3. bronze_soda_checks      — runs Soda checks on all Bronze Delta tables
   4. run_dbt_silver          — dbt run for Silver models
   5. silver_soda_checks      — runs Soda checks on all Silver Delta tables
@@ -33,7 +33,7 @@ from airflow.utils.trigger_rule import TriggerRule
 REPO_ROOT   = Path(__file__).parent.parent
 SODA_RUNNER = REPO_ROOT / "observability" / "soda_checks" / "run_soda_checks.py"
 DBT_DIR     = REPO_ROOT / "dbt_project"
-FLINK_MAIN  = REPO_ROOT / "flink" / "flink_consumer.py"
+INGEST_MAIN  = REPO_ROOT / "ingest" / "kafka_consumer.py"
 
 # ── Default args ──────────────────────────────────────────────────────────────
 default_args = {
@@ -48,13 +48,13 @@ default_args = {
 # ── DAG ───────────────────────────────────────────────────────────────────────
 with DAG(
     dag_id="contract_driven_pipeline",
-    description="Full medallion pipeline: Kafka -> Flink -> Bronze -> Silver -> Gold with Soda contract checks",
+    description="Full medallion pipeline: Kafka -> Ingest -> Bronze -> Silver -> Gold with Soda contract checks",
     schedule_interval=timedelta(minutes=30),
     start_date=datetime(2026, 1, 1),
     catchup=False,
     max_active_runs=1,
     default_args=default_args,
-    tags=["kafka", "flink", "delta", "dbt", "soda", "bronze", "silver", "gold"],
+    tags=["kafka", "spark", "delta", "dbt", "soda", "bronze", "silver", "gold"],
 ) as dag:
 
     # ── Stage 1: Kafka lag check ──────────────────────────────────────────────
@@ -85,20 +85,20 @@ print('Kafka lag check passed.')
         env={**os.environ},
     )
 
-    # ── Stage 2: Flink consumer (micro-batch, runs for 10 minutes) ────────────
-    run_flink_consumer = BashOperator(
-        task_id="run_flink_consumer",
+    # ── Stage 2: Kafka ingest consumer (Spark micro-batch, runs for 10 minutes) ────────────
+    run_kafka_ingest = BashOperator(
+        task_id="run_kafka_ingest",
         bash_command=f"""
-            echo "Starting Flink consumer for 10-minute batch window..."
+            echo "Starting Kafka ingest consumer for 10-minute batch window..."
             cd {REPO_ROOT}
-            python3 {FLINK_MAIN} &
+            python3 {INGEST_MAIN} &
             CONSUMER_PID=$!
             echo "Consumer PID: $CONSUMER_PID"
             sleep 600
             echo "Sending SIGTERM to consumer for graceful shutdown..."
             kill -TERM $CONSUMER_PID 2>/dev/null || true
             wait $CONSUMER_PID 2>/dev/null || true
-            echo "Flink consumer batch complete."
+            echo "Kafka ingest batch complete."
         """,
         execution_timeout=timedelta(minutes=15),
         env={**os.environ},
@@ -174,7 +174,7 @@ print('Kafka lag check passed.')
 
         task_ids = [
             "wait_for_kafka_lag",
-            "run_flink_consumer",
+            "run_kafka_ingest",
             "bronze_soda_checks",
             "run_dbt_silver",
             "silver_soda_checks",
@@ -218,7 +218,7 @@ print('Kafka lag check passed.')
     # ── Task dependencies (linear pipeline) ──────────────────────────────────
     (
         wait_for_kafka_lag
-        >> run_flink_consumer
+        >> run_kafka_ingest
         >> bronze_soda_checks
         >> run_dbt_silver
         >> silver_soda_checks

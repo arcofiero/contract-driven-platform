@@ -7,7 +7,7 @@ into gold_data.db (SQLite) so Superset shows live pipeline data.
 Run after every `dbt run --select gold_*`:
     python observability/dashboards/sync_gold_to_superset.py
 
-Requires Java 17 in PATH (same requirement as the Flink consumer).
+Requires Java 17 in PATH (same requirement as the Kafka ingest consumer).
 """
 
 import os

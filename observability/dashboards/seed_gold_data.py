@@ -4,7 +4,7 @@ observability/dashboards/seed_gold_data.py
 Seeds SQLite with realistic Gold-layer data for Superset dev/demo.
 
 This is only needed when S3/Delta Lake is not yet connected.
-Once the Flink consumer has run and dbt Gold tables exist on S3,
+Once the Kafka ingest consumer has run and dbt Gold tables exist on S3,
 replace this SQLite connection with a Spark SQL or Trino connection.
 
 Run:

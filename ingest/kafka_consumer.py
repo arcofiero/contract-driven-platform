@@ -1,5 +1,5 @@
 """
-flink/flink_consumer.py
+ingest/kafka_consumer.py
 ------------------------
 Main entry point for Day 4.
 
@@ -11,7 +11,7 @@ Pipeline:
     -> [invalid] -> DLQHandler -> DLQ Kafka topic + bronze/dlq Delta table
 
 Run:
-  python flink/flink_consumer.py
+  python ingest/kafka_consumer.py
 """
 
 import logging
@@ -26,15 +26,15 @@ from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
 from confluent_kafka.serialization import SerializationContext, MessageField
 
-from config.flink_config import (
+from config.ingest_config import (
     KAFKA_CONFIG,
     SCHEMA_REGISTRY_CONFIG,
     ALL_SOURCE_TOPICS,
     POLL_TIMEOUT_SEC,
     log_config_summary,
 )
-from flink.bronze_writer import BronzeWriter, build_spark_session
-from flink.dlq_handler import DLQHandler, DLQErrorType
+from ingest.bronze_writer import BronzeWriter, build_spark_session
+from ingest.dlq_handler import DLQHandler, DLQErrorType
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
@@ -42,7 +42,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     stream=sys.stdout,
 )
-logger = logging.getLogger("flink_consumer")
+logger = logging.getLogger("kafka_consumer")
 
 TOPIC_TO_KEY = {
     os.getenv("TOPIC_ORDERS",      "orders"):      "orders",
@@ -163,7 +163,7 @@ def build_deserializers(
     return deserializers
 
 
-class FlinkConsumer:
+class KafkaIngestConsumer:
     """
     Micro-batch Kafka -> Delta Lake Bronze consumer.
     Offsets committed only after successful Delta write (at-least-once).
@@ -315,7 +315,7 @@ class FlinkConsumer:
             logger.error(f"Kafka consumer error: {err}")
 
     def _shutdown(self) -> None:
-        logger.info("Shutting down FlinkConsumer...")
+        logger.info("Shutting down KafkaIngestConsumer...")
         self._do_flush()
         self._writer.flush_and_close()
         self._dlq.close()
@@ -345,10 +345,10 @@ class FlinkConsumer:
 
 
 def main() -> None:
-    consumer = FlinkConsumer()
+    consumer = KafkaIngestConsumer()
     signal.signal(signal.SIGINT,  consumer.stop)
     signal.signal(signal.SIGTERM, consumer.stop)
-    logger.info("Starting Flink consumer -> Delta Lake Bronze writer")
+    logger.info("Starting Kafka ingest consumer -> Delta Lake Bronze writer")
     consumer.start()
 
 

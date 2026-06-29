@@ -1,5 +1,5 @@
 # Soda Core checks — Bronze Orders
-# Runs after flink_consumer writes to Delta Lake bronze/orders
+# Runs after kafka_consumer writes to Delta Lake bronze/orders
 # Purpose: catch schema violations and ingestion anomalies before Silver
 
 checks for bronze_orders:
